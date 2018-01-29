@@ -1832,8 +1832,12 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
       this.handleDisableAlwaysTorClick = bind(this.handleDisableAlwaysTorClick, this);
       this.handleEnableAlwaysTorClick = bind(this.handleEnableAlwaysTorClick, this);
       this.handleTorClick = bind(this.handleTorClick, this);
+      this.handleDisableAlwaysI2PClick = bind(this.handleDisableAlwaysI2PClick, this);
+      this.handleEnableAlwaysI2PClick = bind(this.handleEnableAlwaysI2PClick, this);  
+      this.handleI2PClick = bind(this.handleI2PClick, this);
       this.menu_newversion = new Menu();
       this.menu_tor = new Menu();
+      this.menu_i2p = new Menu();
       this.menu_port = new Menu();
       this.menu_multiuser = new Menu();
       this.menu_donate = new Menu();
@@ -1844,6 +1848,10 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
     }
 
     Dashboard.prototype.isTorAlways = function() {
+      return Page.server_info.fileserver_ip === "127.0.0.1";
+    };
+    
+    Dashboard.prototype.isI2PAlways = function() {
       return Page.server_info.fileserver_ip === "127.0.0.1";
     };
 
@@ -1869,6 +1877,17 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
       return tor_title;
     };
 
+    Dashboard.prototype.getI2PTitle = function() {
+      var i2p_title;
+      i2p_title = Page.server_info.i2p_status.replace(/\((.*)\)/, "").trim();
+      if (i2p_title === "Disabled") {
+        i2p_title = _("Disabled");
+      } else if (i2p_title === "Error") {
+        i2p_title = _("Error");  
+      }
+      return i2p_title;
+    };
+    
     Dashboard.prototype.handleTorClick = function() {
       var ref;
       this.menu_tor.items = [];
@@ -1886,11 +1905,37 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
       this.menu_tor.toggle();
       return false;
     };
+    
+    Dashboard.prototype.handleI2PClick = function() {
+      var ref;  
+      this.menu_i2p.items = [];
+      this.menu_i2p.items.push(["Status: " + ((ref = Page.server_info) != null ? ref.i2p_status : void 0), "http://zeronet.readthedocs.org/en/latest/faq/#how-to-make-zeronet-work-with-tor-under-linux"]);
+      if (this.getI2PTitle() !== "OK") {
+        this.menu_i2p.items.push(["How to make I2P connection work?", "http://zeronet.readthedocs.org/en/latest/faq/#how-to-make-zeronet-work-with-tor-under-linux"]);
+      }
+      this.menu_i2p.items.push(["How to use ZeroNet in I2P Browser?", "http://zeronet.readthedocs.org/en/latest/faq/#how-to-use-zeronet-in-tor-browser"]);
+      this.menu_tor.items.push(["---"]);
+      if (this.isI2PAlways()) {
+        this.menu_i2p.items.push(["Disable always I2P mode", this.handleDisableAlwaysI2PClick]);
+      } else {  
+        this.menu_i2p.items.push(["Enable I2P for every connection (slower)", this.handleEnableAlwaysI2PClick]);
+      }
+      this.menu_i2p.toggle();
+      return false;
+    };
 
     Dashboard.prototype.handleEnableAlwaysTorClick = function() {
       return Page.cmd("configSet", ["tor", "always"], (function(_this) {
         return function(res) {
           return Page.cmd("wrapperNotification", ["done", "Tor always mode enabled, please restart your ZeroNet to make it work.<br>For your privacy switch to Tor browser and start a new profile by renaming the data directory."]);
+        };
+      })(this));
+    };
+    
+    Dashboard.prototype.handleEnableAlwaysI2PClick = function() {
+      return Page.cmd("configSet", ["i2p", "always"], (function(_this) {
+        return function(res) {
+          return Page.cmd("wrapperNotification", ["done", "I2P always mode enabled, please restart your ZeroNet to make it work.<br>For your privacy switch to I2P browser and start a new profile by renaming the data directory."]);
         };
       })(this));
     };
@@ -1903,14 +1948,26 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
       })(this));
     };
 
+    Dashboard.prototype.handleDisableAlwaysI2PClick = function() {
+      return Page.cmd("configSet", ["i2p", null], (function(_this) {
+        return function(res) {
+          return Page.cmd("wrapperNotification", ["done", "I2P always mode disabled, please restart your ZeroNet."]);
+        };
+      })(this));
+    };
+    
     Dashboard.prototype.handlePortClick = function() {
       this.menu_port.items = [];
       if (Page.server_info.ip_external) {
-        this.menu_port.items.push(["Nice! Your port " + Page.server_info.fileserver_port + " is opened.", "http://zeronet.readthedocs.org/en/latest/faq/#do-i-need-to-have-a-port-opened"]);
+        this.menu_port.items.push(["Nice! Your port " + Page.server_info.fileserver_port +" is opened.", "http://zeronet.readthedocs.org/en/latest/faq/#do-i-need-to-have-a-port-opened"]);
       } else if (this.isTorAlways()) {
         this.menu_port.items.push(["Good, your port is always closed when using ZeroNet in Tor always mode.", "http://zeronet.readthedocs.org/en/latest/faq/#do-i-need-to-have-a-port-opened"]);
       } else if (this.getTorTitle() === "OK") {
         this.menu_port.items.push(["Your port " + Page.server_info.fileserver_port + " is closed, but your Tor gateway is running well.", "http://zeronet.readthedocs.org/en/latest/faq/#do-i-need-to-have-a-port-opened"]);
+      } else if (this.isI2PAlways()) {
+        this.menu_port.items.push(["Good, your port is always closed when using ZeroNet in I2P always mode.", "http://zeronet.readthedocs.org/en/latest/faq/#do-i-need-to-have-a-port-opened"]);
+      } else if (this.getI2PTitle() === "OK") {
+        this.menu_port.items.push(["Your port " + Page.server_info.fileserver_port + " is closed, but your I2P gateway is running well.", "http://zeronet.readthedocs.org/en/latest/faq/#do-i-need-to-have-a-port-opened"]);
       } else {
         this.menu_port.items.push(["Your port " + Page.server_info.fileserver_port + " is closed. You are still fine, but for faster experience try open it.", "http://zeronet.readthedocs.org/en/latest/faq/#do-i-need-to-have-a-port-opened"]);
       }
@@ -1985,8 +2042,10 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
 
     Dashboard.prototype.render = function() {
       var tor_title;
+      var i2p_title;
       if (Page.server_info) {
         tor_title = this.getTorTitle();
+        i2p_title = this.getI2PTitle();
         return h("div#Dashboard", navigator.userAgent.match(/(\b(MS)?IE\s+|Trident\/7.0)/) ? h("a.port.dashboard-item.browserwarning", {
           href: "http://browsehappy.com/",
           onmousedown: this.handleBrowserwarningClick,
@@ -2022,16 +2081,20 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
           },
           onmousedown: this.handlePortClick,
           onclick: Page.returnFalse
-        }, [h("span", "Port: "), this.port_checking ? h("span.status", "Checking") : Page.server_info.ip_external === null ? h("span.status", "Checking") : Page.server_info.ip_external === true ? h("span.status.status-ok", "Opened") : this.isTorAlways ? h("span.status.status-ok", "Closed") : tor_title === "OK" ? h("span.status.status-warning", "Closed") : h("span.status.status-bad", "Closed")]), this.menu_port.render(".menu-port"), h("a.tor.dashboard-item.tor", {
+        }, [h("span", "Port: "), this.port_checking ? h("span.status", "Checking") : Page.server_info.ip_external === null ? h("span.status", "Checking") : Page.server_info.ip_external === true ? h("span.status.status-ok", "Opened") : (this.isTorAlways || this.isI2PAlways) ? h("span.status.status-ok", "Closed") : (tor_title === "OK" || i2p_title === "OK") ? h("span.status.status-warning", "Closed") : h("span.status.status-bad", "Closed")]), this.menu_port.render(".menu-port"), h("a.tor.dashboard-item.tor", {
           href: "#Tor",
           onmousedown: this.handleTorClick,
           onclick: Page.returnFalse
-        }, [h("span", "Tor: "), tor_title === "OK" ? this.isTorAlways() ? h("span.status.status-ok", "Always") : h("span.status.status-ok", "Available") : h("span.status.status-warning", tor_title)]), this.menu_tor.render(".menu-tor"));
+        },  [h("span", "Tor: "), tor_title === "OK" ? this.isTorAlways() ? h("span.status.status-ok", "Always") : h("span.status.status-ok", "Available") : h("span.status.status-warning", tor_title)]), this.menu_tor.render(".menu-tor"), h("a.i2p.dashboard-item.i2p", {
+          href: "#I2P",
+          onmousedown: this.handleI2PClick,
+          onclick: Page.returnFalse
+        }, [h("span", "I2P: "), i2p_title === "OK" ? this.isI2PAlways() ? h("span.status.status-i2p-ok", "Always") : h("span.status.status-i2p-ok", "Available") : h("span.status.status-i2p-warning", i2p_title)]), this.menu_i2p.render(".menu-i2p"));
       } else {
         return h("div#Dashboard");
       }
     };
-
+    
     return Dashboard;
 
   })(Class);
@@ -2754,6 +2817,16 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
       this.handleUpdateClick = bind(this.handleUpdateClick, this);
       this.handleUnfavoriteClick = bind(this.handleUnfavoriteClick, this);
       this.handleFavoriteClick = bind(this.handleFavoriteClick, this);
+      this.handlePoliticsClick = bind(this.handlePoliticsClick, this);
+      this.handleBlogsClick = bind(this.handleBlogsClick, this);
+      this.handleServicesClick = bind(this.handleServicesClick, this);
+      this.handleForumsBoardsClick = bind(this.handleForumsBoardsClick, this);
+      this.handleVideoImagesClick = bind(this.handleVideoImagesClick, this);
+      this.handleGuidesClick = bind(this.handleGuidesClick, this);
+      this.handleNewsClick = bind(this.handleNewsClick, this);
+      this.handlePornClick = bind(this.handlePornClick, this);
+      this.handleOtherClick = bind(this.handleOtherClick, this);
+      this.handleUnCategoryClick = bind(this.handleUnCategoryClick, this);
       this.deleted = false;
       this.show_errors = false;
       this.message_visible = false;
@@ -2762,6 +2835,41 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
       this.message_collapsed = false;
       this.message_timer = null;
       this.favorite = Page.settings.favorite_sites[row.address];
+      if(Page.settings.services_sites[row.address])
+      {
+         this.has_category = true;
+         this.category = 'Services';
+      } else if (Page.settings.forums_boards_sites[row.address]) {
+         this.has_category = true;
+         this.category = 'Forums, Boards';
+      } else if(Page.settings.chat_sites[row.address]) {
+         this.has_category = true;
+         this.category = 'Chat';
+      } else if (Page.settings.video_images_sites[row.address]) {
+         this.has_category = true;
+         this.category = 'Video, Images';
+      } else if(Page.settings.guides_sites[row.address]) {
+         this.has_category = true;
+         this.category = 'Guides';
+      } else if (Page.settings.news_sites[row.address]) {
+         this.has_category = true;
+         this.category = 'News';
+      } else if(Page.settings.porn_sites[row.address]) {
+         this.has_category = true;
+         this.category = 'Porn';
+      } else if (Page.settings.other_sites[row.address]) {
+         this.has_category = true;
+         this.category = 'Other';
+      } else if(Page.settings.politics_sites[row.address]) {
+         this.has_category = true;
+         this.category = 'Politics';
+      } else if (Page.settings.blogs_sites[row.address]) {
+	       this.has_category = true;
+         this.category = 'Blogs';
+      } else {   
+         this.has_category = false;
+         this.category = '';
+      }
       this.key = row.address;
       this.optional_helps = [];
       this.optional_helps_disabled = {};
@@ -2852,6 +2960,147 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
       this.favorite = false;
       this.menu = new Menu();
       delete Page.settings.favorite_sites[this.row.address];
+      Page.saveSettings();
+      Page.site_list.reorder();
+      return false;
+    };
+    
+    Site.prototype.handleServicesClick = function() {
+      this.handleUnfavoriteClick();
+      this.has_category = true;    
+      this.category = 'Services';
+      this.menu = new Menu();
+      Page.settings.services_sites[this.row.address] = true;
+      Page.saveSettings();
+      Page.site_list.reorder();
+      return false;
+    };
+
+    Site.prototype.handleForumsBoardsClick = function() {
+      this.handleUnfavoriteClick();
+      this.has_category = true;    
+      this.category = 'Forums, Boards';
+      this.menu = new Menu();
+      Page.settings.forums_boards_sites[this.row.address] = true;
+      Page.saveSettings();
+      Page.site_list.reorder();
+      return false;
+    };
+
+    Site.prototype.handleChatClick = function() {
+      this.handleUnfavoriteClick();
+      this.has_category = true;    
+      this.category = 'Chat';
+      this.menu = new Menu();
+      Page.settings.chat_sites[this.row.address] = true;
+      Page.saveSettings();
+      Page.site_list.reorder();
+      return false;
+    };
+
+    Site.prototype.handleVideoImagesClick = function() {
+      this.handleUnfavoriteClick();
+      this.has_category = true;    
+      this.category = 'Video, Images';
+      this.menu = new Menu();
+      Page.settings.video_images_sites[this.row.address] = true;
+      Page.saveSettings();
+      Page.site_list.reorder();
+      return false;
+    };
+
+    Site.prototype.handleGuidesClick = function() {
+      this.handleUnfavoriteClick();
+      this.has_category = true;
+      this.category = 'Guides';  
+      this.menu = new Menu();
+      Page.settings.guides_sites[this.row.address] = true;
+      Page.saveSettings();
+      Page.site_list.reorder();
+      return false;
+    };
+
+    Site.prototype.handleNewsClick = function() {
+      this.handleUnfavoriteClick();
+      this.has_category = true;    
+      this.category = 'News';
+      this.menu = new Menu();
+      Page.settings.news_sites[this.row.address] = true;
+      Page.saveSettings();
+      Page.site_list.reorder();
+      return false;
+    };
+
+    Site.prototype.handlePornClick = function() {
+      this.handleUnfavoriteClick();
+      this.has_category = true;    
+      this.category = 'Porn';
+      this.menu = new Menu();
+      Page.settings.porn_sites[this.row.address] = true;
+      Page.saveSettings();
+      Page.site_list.reorder();
+      return false;
+    };
+
+    Site.prototype.handleOtherClick = function() {
+      this.handleUnfavoriteClick();
+      this.has_category = true;    
+      this.category = 'Other';
+      this.menu = new Menu();
+      Page.settings.other_sites[this.row.address] = true;
+      Page.saveSettings();
+      Page.site_list.reorder();
+      return false;
+    };
+
+    Site.prototype.handlePoliticsClick = function() {
+      this.handleUnfavoriteClick();
+      this.has_category = true;    
+      this.category = 'Politics';
+      this.menu = new Menu();
+      Page.settings.politics_sites[this.row.address] = true;
+      Page.saveSettings();
+      Page.site_list.reorder();
+      return false;
+    };
+
+    Site.prototype.handleBlogsClick = function() {
+      this.handleUnfavoriteClick();
+      this.has_category = true;
+      this.category = 'Blogs';
+      this.menu = new Menu();
+      Page.settings.blogs_sites[this.row.address] = true;
+      Page.saveSettings();
+      Page.site_list.reorder();
+      return false;
+    };
+ 
+    Site.prototype.handleUnCategoryClick = function() {
+      this.handleFavoriteClick();
+      this.has_category = false;
+      this.menu = new Menu();
+      if (this.category == 'Services') {
+          delete Page.settings.services_sites[this.row.address];
+      } else if (this.category == 'Forums, Boards') {
+          delete Page.settings.forums_boards_sites[this.row.address];
+      } else if (this.category == 'Chat') {
+          delete Page.settings.chat_sites[this.row.address];
+      } else if (this.category == 'Video, Images') {
+          delete Page.settings.video_images_sites[this.row.address];
+      } else if (this.category == 'Guides') {
+          delete Page.settings.guides_sites[this.row.address];
+      } else if (this.category == 'News') {
+          delete Page.settings.news_sites[this.row.address];
+      } else if (this.category == 'Porn') {
+          delete Page.settings.porn_sites[this.row.address];
+      } else if (this.category == 'Other') {
+          delete Page.settings.other_sites[this.row.address];
+      } else if(this.category == 'Politics') {
+          delete Page.settings.politics_sites[this.row.address];
+      } else if (this.category == 'Blogs') {
+          delete Page.settings.blogs_sites[this.row.address];
+      }
+      this.category = '';
       Page.saveSettings();
       Page.site_list.reorder();
       return false;
@@ -2954,10 +3203,32 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
     Site.prototype.handleSettingsClick = function(e) {
       this.menu.items = [];
       if (this.favorite) {
-        this.menu.items.push(["Unfavorite", this.handleUnfavoriteClick]);
+         this.menu.items.push(["Unfavorite", this.handleUnfavoriteClick]);
       } else {
-        this.menu.items.push(["Favorite", this.handleFavoriteClick]);
+	       if(!this.has_category) {
+             this.menu.items.push(["Favorite", this.handleFavoriteClick]);
+	       }
       }
+
+      if (this.favorite) {
+        if(!this.has_category) {
+             this.menu.items.push(["To Services", this.handleServicesClick]);
+             this.menu.items.push(["To Forums, Boards", this.handleForumsBoardsClick]);
+             this.menu.items.push(["To Chat", this.handleChatClick]);
+             this.menu.items.push(["To Video, Images", this.handleVideoImagesClick]);
+             this.menu.items.push(["To Guides", this.handleGuidesClick]);
+             this.menu.items.push(["To News", this.handleNewsClick]);
+             this.menu.items.push(["To Porn", this.handlePornClick]);
+             this.menu.items.push(["To Other", this.handleOtherClick]);
+             this.menu.items.push(["To Politics", this.handlePoliticsClick]);
+	           this.menu.items.push(["To Blogs", this.handleBlogsClick]);
+        }
+      }
+      
+      if(this.has_category) {
+       this.menu.items.push(["Remove from category", this.handleUnCategoryClick]);
+      }
+
       this.menu.items.push(["Update", this.handleUpdateClick]);
       this.menu.items.push(["Check files", this.handleCheckfilesClick]);
       if (this.row.settings.serving) {
@@ -3203,9 +3474,37 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
     function SiteList() {
       this.onSiteInfo = bind(this.onSiteInfo, this);
       this.render = bind(this.render, this);
+      this.renderOwnedSitesHelper = false;
+      this.renderConnectedSitesHelper = false;
+      this.renderMergedSitesHelper = false;
+      this.renderFavoriteSitesHelper = false;
+      this.renderPoliticsSitesHelper = false;
+      this.renderBlogsSitesHelper = false;
+      this.renderServicesSitesHelper = false;
+      this.renderGuidesSitesHelper = false;
+      this.renderNewsSitesHelper = false;
+      this.renderVideoImagesSitesHelper = false;
+      this.renderPornSitesHelper = false;
+      this.renderOtherSitesHelper = false;
+      this.renderChatSitesHelper = false;
+      this.renderForumsBoardsSitesHelper = false;
       this.handleFilterKeyup = bind(this.handleFilterKeyup, this);
       this.handleFilterInput = bind(this.handleFilterInput, this);
       this.renderMergedSites = bind(this.renderMergedSites, this);
+      this.renderOwnedSitesHelperClick = bind(this.renderOwnedSitesHelperClick, this);
+      this.renderConnectedSitesHelperClick = bind(this.renderConnectedSitesHelperClick, this);
+      this.renderMergedSitesHelperClick = bind(this.renderMergedSitesHelperClick, this);  
+      this.renderFavoriteSitesHelperClick = bind(this.renderFavoriteSitesHelperClick, this);
+      this.renderPoliticsSitesHelperClick = bind(this.renderPoliticsSitesHelperClick, this);
+      this.renderBlogsSitesHelperClick = bind(this.renderBlogsSitesHelperClick, this);   
+      this.renderServicesSitesHelperClick = bind(this.renderServicesSitesHelperClick, this);
+      this.renderGuidesSitesHelperClick = bind(this.renderGuidesSitesHelperClick, this);  
+      this.renderNewsSitesHelperClick = bind(this.renderNewsSitesHelperClick, this);  
+      this.renderVideoImagesSitesHelperClick = bind(this.renderVideoImagesSitesHelperClick, this);
+      this.renderPornSitesHelperClick = bind(this.renderPornSitesHelperClick, this); 
+      this.renderOtherSitesHelperClick = bind(this.renderOtherSitesHelperClick, this);
+      this.renderChatSitesHelperClick = bind(this.renderChatSitesHelperClick, this); 
+      this.renderForumsBoardsSitesHelperClick = bind(this.renderForumsBoardsSitesHelperClick, this);
       this.reorder = bind(this.reorder, this);
       this.sortRows = bind(this.sortRows, this);
       this.reorderTimer = bind(this.reorderTimer, this);
@@ -3268,7 +3567,27 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
       Page.cmd("siteList", {}, (function(_this) {
         return function(site_rows) {
           var favorite_sites;
-          favorite_sites = Page.settings.favorite_sites;
+          var politics_sites;
+          var blogs_sites;
+          var services_sites;
+          var forums_boards_sites;
+          var chat_sites;
+          var video_images_sites;
+          var guides_sites;
+          var news_sites;
+          var porn_sites;
+          var other_sites;
+          services_sites = Page.settings.services_sites;
+          forums_boards_sites = Page.settings.forums_boards_sites;
+          chat_sites = Page.settings.chat_sites;
+          video_images_sites = Page.settings.video_images_sites;
+          guides_sites = Page.settings.guides_sites;
+          news_sites = Page.settings.news_sites;
+          porn_sites = Page.settings.porn_sites;
+          other_sites = Page.settings.other_sites;
+          favorite_sites = Page.settings.favorite_sites;  
+          politics_sites = Page.settings.politics_sites;
+          blogs_sites = Page.settings.blogs_sites;
           _this.item_list.sync(site_rows);
           _this.sortRows(_this.item_list.items);
           if (_this.inactive_demo_sites === null) {
@@ -3367,6 +3686,131 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
       return results;
     };
 
+       SiteList.prototype.renderOwnedSitesHelperClick = function() {
+     this.renderOwnedSitesHelper = Page.settings.owned_sites_helper;
+     this.renderOwnedSitesHelper = !this.renderOwnedSitesHelper;
+     Page.settings.owned_sites_helper = this.renderOwnedSitesHelper;
+     Page.saveSettings();
+     Page.site_list.reorder();
+     return false;
+    };
+
+    SiteList.prototype.renderConnectedSitesHelperClick = function() {
+     this.renderConnectedSitesHelper = Page.settings.connected_sites_helper;
+     this.renderConnectedSitesHelper = !this.renderConnectedSitesHelper;
+     Page.settings.connected_sites_helper = this.renderConnectedSitesHelper;
+     Page.saveSettings();
+     Page.site_list.reorder();
+     return false;
+    };
+
+    SiteList.prototype.renderMergedSitesHelperClick = function() {
+     this.renderMergedSitesHelper = Page.settings.merged_sites_helper;
+     this.renderMergedSitesHelper = !this.renderMergedSitesHelper;
+     Page.settings.merged_sites_helper = this.renderMergedSitesHelper;
+     Page.saveSettings();
+     Page.site_list.reorder();
+     return false;
+    };
+
+    SiteList.prototype.renderFavoriteSitesHelperClick = function() {
+     this.renderFavoriteSitesHelper = Page.settings.favorite_sites_helper;
+     this.renderFavoriteSitesHelper = !this.renderFavoriteSitesHelper;
+     Page.settings.favorite_sites_helper = this.renderFavoriteSitesHelper;
+     Page.saveSettings();
+     Page.site_list.reorder();
+     return false;
+    };
+
+    SiteList.prototype.renderPoliticsSitesHelperClick = function() {
+     this.renderPoliticsSitesHelper = Page.settings.politics_sites_helper;
+     this.renderPoliticsSitesHelper = !this.renderPoliticsSitesHelper;
+     Page.settings.politics_sites_helper = this.renderPoliticsSitesHelper;
+     Page.saveSettings();
+     Page.site_list.reorder();
+     return false;
+    };
+
+    SiteList.prototype.renderBlogsSitesHelperClick = function() {
+     this.renderBlogsSitesHelper = Page.settings.blogs_sites_helper;
+     this.renderBlogsSitesHelper = !this.renderBlogsSitesHelper;
+     Page.settings.blogs_sites_helper = this.renderBlogsSitesHelper;
+     Page.saveSettings();
+     Page.site_list.reorder();
+     return false;
+    };
+
+    SiteList.prototype.renderServicesSitesHelperClick = function() {
+     this.renderServicesSitesHelper = Page.settings.services_sites_helper;
+     this.renderServicesSitesHelper = !this.renderServicesSitesHelper;
+     Page.settings.services_sites_helper = this.renderServicesSitesHelper;
+     Page.saveSettings();
+     return false;
+    };
+
+    SiteList.prototype.renderGuidesSitesHelperClick = function() {
+     this.renderGuidesSitesHelper = Page.settings.guides_sites_helper;
+     this.renderGuidesSitesHelper = !this.renderGuidesSitesHelper;
+     Page.settings.guides_sites_helper = this.renderGuidesSitesHelper;
+     Page.saveSettings();
+     Page.site_list.reorder();
+     return false;
+    };
+
+    SiteList.prototype.renderNewsSitesHelperClick = function()  {
+     this.renderNewsSitesHelper = Page.settings.news_sites_helper;
+     this.renderNewsSitesHelper = !this.renderNewsSitesHelper;
+     Page.settings.news_sites_helper = this.renderNewsSitesHelper;
+     Page.saveSettings();
+     Page.site_list.reorder();
+     return false;
+    };
+
+    SiteList.prototype.renderVideoImagesSitesHelperClick = function() {
+     this.renderVideoImagesSitesHelper = Page.settings.video_images_sites_helper;
+     this.renderVideoImagesSitesHelper = !this.renderVideoImagesSitesHelper;
+     Page.settings.video_images_sites_helper = this.renderVideoImagesSitesHelper;
+     Page.saveSettings();
+     Page.site_list.reorder();
+     return true;
+    };
+
+    SiteList.prototype.renderPornSitesHelperClick = function() {
+     this.renderPornSitesHelper = Page.settings.porn_sites_helper;
+     this.renderPornSitesHelper = !this.renderPornSitesHelper;
+     Page.settings.porn_sites_helper = this.renderPornSitesHelper;
+     Page.saveSettings();
+     Page.site_list.reorder();
+     return false;
+    };
+
+    SiteList.prototype.renderOtherSitesHelperClick = function() {
+     this.renderOtherSitesHelper = Page.settings.other_sites_helper;
+     this.renderOtherSitesHelper = !this.renderOtherSitesHelper;
+     Page.settings.other_sites_helper = this.renderOtherSitesHelper;
+     Page.saveSettings();
+     Page.site_list.reorder();
+     return false;
+    };
+
+    SiteList.prototype.renderChatSitesHelperClick = function() {
+     this.renderChatSitesHelper = Page.settings.chat_sites_helper;
+     this.renderChatSitesHelper = !this.renderChatSitesHelper;
+     Page.settings.chat_sites_helper = this.renderChatSitesHelper;
+     Page.saveSettings();
+     Page.site_list.reorder();
+     return false;
+    };
+
+    SiteList.prototype.renderForumsBoardsSitesHelperClick = function() {
+     this.renderForumsBoardsSitesHelper = Page.settings.forums_boards_sites_helper;
+     this.renderForumsBoardsSitesHelper = !this.renderForumsBoardsSitesHelper;
+     Page.settings.forums_boards_sites_helper = this.renderForumsBoardsSitesHelper;
+     Page.saveSettings();
+     Page.site_list.reorder();
+     return false;
+    };
+
     SiteList.prototype.renderMergedSites = function() {
       var back, i, len, merged_db, merged_sites, merged_type, name, ref, site;
       merged_db = {};
@@ -3386,7 +3830,9 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
         merged_sites = merged_db[merged_type];
         back.push([
           h("h2.more", {
-            key: "Merged: " + merged_type
+            key: "Merged: " + merged_type,
+            onmousedown: this.renderMergedSitesHelperClick,
+            onclick: Page.returnFalse
           }, "Merged: " + merged_type), h("div.SiteList.merged.merged-" + merged_type, merged_sites.map(function(item) {
             return item.render();
           }))
@@ -3394,7 +3840,7 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
       }
       return back;
     };
-
+    
     SiteList.prototype.handleFilterInput = function(e) {
       return this.filtering = e.target.value;
     };
@@ -3406,6 +3852,124 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
       }
       return false;
     };
+    
+      SiteList.prototype.renderFavoriteSitesH = function()
+    {
+      return h("h2.favorited", {
+           onmousedown: this.renderFavoriteSitesHelperClick,
+           onclick: Page.returnFalse
+      }, "Favorited sites:");
+    };
+
+    SiteList.prototype.renderPoliticsSitesH = function()
+    {
+      return h("h2.politics", {
+           onmousedown: this.renderPoliticsSitesHelperClick,
+           onclick: Page.returnFalse
+      }, "Politics sites:");
+    };
+
+
+    SiteList.prototype.renderBlogsSitesH = function()
+    {
+      return h("h2.blogs", {
+           onmousedown: this.renderBlogsSitesHelperClick,
+           onclick: Page.returnFalse
+      }, "Blogs sites:");
+    };
+
+    SiteList.prototype.renderServicesSitesH = function()
+    {
+      return h("h2.services", {
+           onmousedown: this.renderServicesSitesHelperClick,
+           onclick: Page.returnFalse
+      }, "Services sites:");
+    };
+
+
+    SiteList.prototype.renderGuidesSitesH = function()
+    {
+      return h("h2.guides", {
+           onmousedown: this.renderGuidesSitesHelperClick,
+           onclick: Page.returnFalse
+      }, "Guides sites:");
+    };
+
+    SiteList.prototype.renderNewsSitesH = function()
+    {
+      return h("h2.news", {
+           onmousedown: this.renderNewsSitesHelperClick,
+           onclick: Page.returnFalse
+      }, "News sites:");
+    };
+
+   SiteList.prototype.renderVideoImagesSitesH = function()
+    {
+      return h("h2.video_images", {
+           onmousedown: this.renderVideoImagesSitesHelperClick,
+           onclick: Page.returnFalse
+      }, "Video, Images sites:");
+    };
+
+    SiteList.prototype.renderPornSitesH = function()
+    {
+      return h("h2.porn", {
+           onmousedown: this.rendePornSitesHelperClick,
+           onclick: Page.returnFalse
+      }, "Porn sites:");
+    };
+
+   SiteList.prototype.renderOtherSitesH = function()
+    {
+      return h("h2.other", {
+           onmousedown: this.renderOtherSitesHelperClick,
+           onclick: Page.returnFalse
+      }, "Other sites:");
+    };
+
+   SiteList.prototype.renderChatSitesH = function()
+    {
+      return h("h2.chat", {
+           onmousedown: this.renderChatSitesHelperClick,
+           onclick: Page.returnFalse
+      }, "Chat sites:");
+    };
+
+   SiteList.prototype.renderOwnedSitesH = function()
+    {
+      return h("h2.owned", {
+           onmousedown: this.renderOwnedSitesHelperClick,
+           onclick: Page.returnFalse
+      }, "Owned sites:");
+    };
+
+   SiteList.prototype.renderForumsBoardsSitesH = function()
+    {
+      return h("h2.forums_boards", {
+           onmousedown: this.renderForumsBoardsSitesHelperClick,
+           onclick: Page.returnFalse
+      }, "Forums, Boards sites:");
+    };
+
+    SiteList.prototype.renderConnectedSitesH = function()
+    {
+      return h("h2.connected", {
+           onmousedown: this.renderConnectedSitesHelperClick,
+           onclick: Page.returnFalse
+      }, "Connected sites:");
+    };
+
+    SiteList.prototype.renderMergedSitesH = function()
+    {
+      this.renderMergedSitesHelper = Page.settings.merged_sites_helper;
+      if(!this.renderMergedSitesHelper)
+          return this.renderMergedSites();
+      else
+           return h("h2.more", {
+                onmousedown: this.renderMergedSitesHelperClick,
+                onclick: Page.returnFalse
+      	   }, "Merged sites:");
+    };
 
     SiteList.prototype.render = function() {
       var filter_base, i, len, ref, ref1, site;
@@ -3414,10 +3978,37 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
       }
       this.sites_needaction = [];
       this.sites_favorited = [];
+      this.sites_services = [];
+      this.sites_forums_boards = [];
+      this.sites_chat = [];
+      this.sites_video_images = [];
+      this.sites_guides = [];
+      this.sites_news = [];
+      this.sites_porn = [];
+      this.sites_other = [];
+      this.sites_politics = [];
+      this.sites_blogs = [];
       this.sites_owned = [];
       this.sites_connected = [];
       this.sites_merged = [];
       ref = this.sites;
+       //Page.settings.owned_sites_helper = false;
+      //Page.saveSettings();
+      this.renderOwnedSitesHelper = Page.settings.owned_sites_helper;
+      this.renderConnectedSitesHelper = Page.settings.connected_sites_helper;
+      this.renderMergedSitesHelper = Page.settings.merged_sites_helper;
+      this.renderFavoriteSitesHelper = Page.settings.favorite_sites_helper;
+      this.renderPoliticsSitesHelper = Page.settings.politics_sites_helper;
+      this.renderBlogsSitesHelper = Page.settings.blogs_sites_helper;
+      this.renderServicesSitesHelper = Page.settings.services_sites_helper;
+      this.renderGuidesSitesHelper = Page.settings.guides_sites_helper;
+      this.renderNewsSitesHelper = Page.settings.news_sites_helper;
+      this.renderVideoImagesSitesHelper = Page.settings.video_images_sites_helper;
+      this.renderPornSitesHelper = Page.settings.porn_sites_helper;
+      this.renderOtherSitesHelper = Page.settings.other_sites_helper;
+      this.renderChatSitesHelper = Page.settings.chat_sites_helper;
+      this.renderForumsBoardsSitesHelper = Page.settings.forums_boards_sites_helper;
+      
       for (i = 0, len = ref.length; i < len; i++) {
         site = ref[i];
         if (this.filtering) {
@@ -3429,17 +4020,76 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
         if (site.row.settings.size * 1.2 > site.row.size_limit * 1024 * 1024) {
           site.row.need_limit = site.row.size_limit * 2;
           this.sites_needaction.push(site);
-        } else if (site.favorite) {
-          this.sites_favorited.push(site);
+	      } else if (site.has_category) {
+          if(site.category == 'Services') {
+		        if(!this.renderServicesSitesHelper)
+                	this.sites_services.push(site);
+          	else if(this.sites_services.length==0)
+                	this.sites_services.push(site);
+          } else if(site.category == 'Forums, Boards') {
+		        if(!this.renderForumsBoardsSitesHelper)
+                	this.sites_forums_boards.push(site);
+          	else if(this.sites_forums_boards.length==0)
+                	this.sites_forums_boards.push(site);
+          } else if(site.category == 'Chat') {
+          	this.sites_chat.push(site);
+          } else if(site.category == 'Video, Images') {
+          	this.sites_video_images.push(site);
+          } else if(site.category == 'Guides') {
+		        if(!this.renderGuidesSitesHelper)
+                	this.sites_guides.push(site);
+          	else if(this.sites_guides.length==0)
+                	this.sites_guides.push(site);
+          } else if(site.category == 'News') {
+		        if(!this.renderNewsSitesHelper)
+                	this.sites_news.push(site);
+          	else if(this.sites_news.length==0)
+                	this.sites_news.push(site);
+          } else if(site.category == 'Porn') {
+		        if(!this.renderPornSitesHelper)
+                	this.sites_porn.push(site);
+          	else if(this.sites_porn.length==0)
+                	this.sites_porn.push(site);
+          } else if(site.category == 'Other') {
+		        if(!this.renderOtherSitesHelper)
+                	this.sites_other.push(site);
+          	else if(this.sites_other.length==0)
+                	this.sites_other.push(site);
+	        } else if(site.category == 'Politics') {
+		        if(!this.renderPoliticsSitesHelper)
+                	this.sites_politics.push(site);
+          	else if(this.sites_politics.length==0)
+                	this.sites_politics.push(site);
+	        } else if(site.category == 'Blogs') {
+		        if(!this.renderBlogsSitesHelper)
+                	this.sites_blogs.push(site);
+          	else if(this.sites_blogs.length==0)
+                	this.sites_blogs.push(site);
+          }
         } else if (site.row.content.merged_type) {
           this.sites_merged.push(site);
+          if(!this.renderMergedSitesHelper)
+             this.sites_merged.push(site);
+          else if(this.sites_merged.length==0)
+             this.sites_merged.push(site);
         } else if ((ref1 = site.row.settings) != null ? ref1.own : void 0) {
-          this.sites_owned.push(site);
+	        if(!this.renderOwnedSitesHelper)
+             this.sites_owned.push(site);
+	        else if(this.sites_owned.length==0)
+	           this.sites_owned.push(site);
+        } else if (site.favorite) {
+		        if(!this.renderFavoriteSitesHelper)
+                	this.sites_favorited.push(site);
+          	else if(this.sites_favorited.length==0)
+                	this.sites_favorited.push(site);
         } else {
-          this.sites_connected.push(site);
+          if(!this.renderConnectedSitesHelper)
+             this.sites_connected.push(site);
+          else if(this.sites_connected.length==0)
+             this.sites_connected.push(site);
         }
       }
-      return h("div#SiteList", [
+ return h("div#SiteList", [
         this.sites.length > 20 ? h("input.site-filter", {
           placeholder: "Filter: Site name",
           spellcheck: false,
@@ -3447,19 +4097,38 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
           onkeyup: this.handleFilterKeyup,
           value: this.filtering
         }) : void 0, this.sites_needaction.length > 0 ? h("h2.needaction", "Running out of size limit:") : void 0, h("div.SiteList.needaction", this.sites_needaction.map(function(item) {
-          return item.render();
-        })), this.sites_favorited.length > 0 ? h("h2.favorited", "Favorited sites:") : void 0, h("div.SiteList.favorited", this.sites_favorited.map(function(item) {
-          return item.render();
-        })), this.sites_owned.length > 0 ? h("h2.owned", "Owned sites:") : void 0, h("div.SiteList.owned", this.sites_owned.map(function(item) {
-          return item.render();
-        })), this.sites_connected.length > 0 ? h("h2.connected", "Connected sites:") : void 0, h("div.SiteList.connected", this.sites_connected.map(function(item) {
-          return item.render();
-        })), this.renderMergedSites(), this.inactive_demo_sites !== null && this.inactive_demo_sites.length > 0 ? [
-          h("h2.more", {
-            key: "More"
-          }, "More sites:"), h("div.SiteList.more", this.inactive_demo_sites.map(function(item) {
+        })), this.sites_services.length > 0 ? (this.renderServicesSitesH()) : void 0, (this.renderServicesSitesHelper) ? (void 0) : (h("div.SiteList.services", this.sites_services.map(function(item) {
             return item.render();
-          }))
+        }))), this.sites_forums_boards.length > 0 ? (this.renderForumsBoardsSitesH()) : void 0, (this.renderForumsBoardsSitesHelper) ? (void 0) : (h("div.SiteList.forums_boards", this.sites_forums_boards.map(function(item) {
+            return item.render();
+        }))), this.sites_chat.length > 0 ? (this.renderChatSitesH()) : void 0, (this.renderChatSitesHelper) ? (void 0) : (h("div.SiteList.chat", this.sites_chat.map(function(item) {
+            return item.render();
+        }))), this.sites_video_images.length > 0 ? (this.renderVideoImagesSitesH()) : void 0, (this.renderVideoImagesSitesHelper) ? (void 0) : (h("div.SiteList.video_images", this.sites_video_images.map(function(item) {
+            return item.render();
+        }))), this.sites_guides.length > 0 ? (this.renderGuidesSitesH()) : void 0, (this.renderGuidesSitesHelper) ? (void 0) : (h("div.SiteList.guides", this.sites_guides.map(function(item) {
+            return item.render();
+        }))), this.sites_news.length > 0 ? (this.renderNewsSitesH()) : void 0, (this.renderNewsSitesHelper) ? (void 0) : (h("div.SiteList.news", this.sites_news.map(function(item) {
+            return item.render();
+        }))), this.sites_porn.length > 0 ? (this.renderPornSitesH()) : void 0, (this.renderPornSitesHelper) ? (void 0) : (h("div.SiteList.porn", this.sites_porn.map(function(item) {
+            return item.render();
+        }))), this.sites_other.length > 0 ? (this.renderOtherSitesH()) : void 0, (this.renderOtherSitesHelper) ? (void 0) : (h("div.SiteList.other", this.sites_other.map(function(item) {
+            return item.render();
+        }))), this.sites_blogs.length > 0 ? (this.renderBlogsSitesH()) : void 0, (this.renderBlogsSitesHelper) ? (void 0) : (h("div.SiteList.blogs", this.sites_blogs.map(function(item) {
+            return item.render();
+        }))), this.sites_politics.length > 0 ? (this.renderPoliticsSitesH()) : void 0, (this.renderPoliticsSitesHelper) ? (void 0) : (h("div.SiteList.politics", this.sites_politics.map(function(item) {
+	          return item.render();
+	      }))), this.sites_favorited.length > 0 ? (this.renderFavoriteSitesH()) : void 0, (this.renderFavoriteSitesHelper) ? (void 0) : (h("div.SiteList.favorited", this.sites_favorited.map(function(item) {
+           return item.render();
+        }))), this.sites_owned.length > 0 ? (this.renderOwnedSitesH()) : void 0, (this.renderOwnedSitesHelper) ? (void 0) : (h("div.SiteList.owned", this.sites_owned.map(function(item) {
+           return item.render();
+        }))), this.sites_connected.length > 0 ? (this.renderConnectedSitesH()) : void 0, (this.renderConnectedSitesHelper) ? (void 0) : (h("div.SiteList.connected", this.sites_connected.map(function(item) {
+           return item.render();
+        }))), this.renderMergedSitesH(), this.inactive_demo_sites !== null && this.inactive_demo_sites.length > 0 ? [
+           h("h2.more", {
+            key: "More" 
+           }, "More sites:"), h("div.SiteList.more", this.inactive_demo_sites.map(function(item) {
+             return item.render();
+           }))
         ] : void 0
       ]);
     };
@@ -6243,6 +6912,7 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
       this.handleUpdateZeronetClick = bind(this.handleUpdateZeronetClick, this);
       this.handleManageMutesClick = bind(this.handleManageMutesClick, this);
       this.handleTorClick = bind(this.handleTorClick, this);
+      this.handleI2PClick = bind(this.handleI2PClick, this);
       this.handleOrderbyClick = bind(this.handleOrderbyClick, this);
       this.handleUpdateAllClick = bind(this.handleUpdateAllClick, this);
       this.handleSettingsClick = bind(this.handleSettingsClick, this);
@@ -6393,6 +7063,10 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
     };
 
     Head.prototype.handleTorClick = function() {
+      return true;
+    };
+    
+    Head.prototype.handleI2PClick = function() {
       return true;
     };
 
@@ -6654,7 +7328,7 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
       }
     };
 
-    ZeroHello.prototype.loadSettings = function() {
+  ZeroHello.prototype.loadSettings = function() {
       return this.on_site_info.then((function(_this) {
         return function() {
           return _this.cmd("userGetSettings", [], function(res) {
@@ -6665,6 +7339,75 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
               _this.settings = res;
               if ((base1 = _this.settings).sites_orderby == null) {
                 base1.sites_orderby = "peers";
+              }
+              if ((base1 = _this.settings).politics_sites == null) {
+                base1.politics_sites = {};
+              }
+              if ((base1 = _this.settings).blogs_sites == null) {
+                base1.blogs_sites = {}; 
+              }
+              if ((base1 = _this.settings).services_sites == null) {
+                base1.services_sites = {};
+              }
+              if ((base1 = _this.settings).guides_sites == null) {
+                base1.guides_sites = {}; 
+              }
+              if ((base1 = _this.settings).news_sites == null) {
+                base1.news_sites = {};
+              }
+              if ((base1 = _this.settings).video_images_sites == null) {
+                base1.video_images_sites = {};
+              }
+              if ((base1 = _this.settings).porn_sites == null) {
+                base1.porn_sites = {}; 
+              }
+              if ((base1 = _this.settings).chat_sites == null) {
+                base1.chat_sites = {};
+              }
+              if ((base1 = _this.settings).forums_boards_sites == null) {
+                base1.forums_boards_sites = {}; 
+              }
+              if ((base1 = _this.settings).other_sites == null) {
+                base1.other_sites = {};
+              }
+              if ((base1 = _this.settings).politics_sites_helper == null) {
+                base1.politics_sites_helper = false;
+              }
+              if ((base1 = _this.settings).blogs_sites_helper == null) {
+                base1.blogs_sites_helper = false;
+              }
+              if ((base1 = _this.settings).services_sites_helper == null) {
+                base1.services_sites_helper = false;
+              }
+              if ((base1 = _this.settings).guides_sites_helper == null) {
+                base1.guides_sites_helper = false;
+              }
+              if ((base1 = _this.settings).news_sites_helper == null) {
+                base1.news_sites_helper = false;
+              }
+              if ((base1 = _this.settings).video_images_sites_helper == null) {
+                base1.video_images_sites_helper = false;
+              }
+              if ((base1 = _this.settings).porn_sites_helper == null) {
+                base1.porn_sites_helper = false;
+              }
+              if ((base1 = _this.settings).chat_sites_helper  == null) {
+                base1.chat_sites_helper = false;
+              }
+              if ((base1 = _this.settings).forums_boards_sites_helper == null) {
+                base1.forums_boards_sites_helper = false;
+              }
+              if ((base1 = _this.settings).other_sites_helper == null) {
+                base1.other_sites_helper = false;
+              }
+              if ((base1 = _this.settings).owned_sites_helper == null) {
+                base1.owned_sites_helper = false;
+              }
+              if ((base1 = _this.settings).connected_sites_helper == null) {
+                base1.connected_sites_helper = false;
+              }
+              if ((base1 = _this.settings).merged_sites_helper == null) {
+                base1.merged_sites_helper = false;
               }
               if ((base2 = _this.settings).favorite_sites == null) {
                 base2.favorite_sites = {};
@@ -6690,6 +7433,78 @@ defaults={gfm:true,tables:true,breaks:false,pedantic:false,sanitize:false,smartL
           }
           if ((base2 = _this.settings).favorite_sites == null) {
             base2.favorite_sites = {};
+          }
+          if ((base1 = _this.settings).politics_sites == null) {
+            base1.politics_sites = {}; 
+          }
+          if ((base1 = _this.settings).blogs_sites == null) {
+            base1.blogs_sites = {};
+          }
+          if ((base1 = _this.settings).services_sites == null) {
+            base1.services_sites = {};
+          }
+          if ((base1 = _this.settings).guides_sites == null) {
+            base1.guides_sites = {};
+          }
+          if ((base1 = _this.settings).news_sites == null) {
+            base1.news_sites = {};
+          }
+          if ((base1 = _this.settings).video_images_sites == null) {
+            base1.video_images_sites = {};
+          }
+          if ((base1 = _this.settings).porn_sites == null) {
+            base1.porn_sites = {};
+          }
+          if ((base1 = _this.settings).chat_sites == null) {
+            base1.chat_sites = {};
+          }
+          if ((base1 = _this.settings).forums_boards_sites == null) {
+            base1.forums_boards_sites = {};
+          }
+          if ((base1 = _this.settings).other_sites == null) {
+            base1.other_sites = {};
+          }
+          if ((base1 = _this.settings).favorite_sites_helper == null) {
+            base1.favorite_sites_helper = false;
+          }
+          if ((base1 = _this.settings).politics_sites_helper == null) {
+            base1.politics_sites_helper = false;
+          }
+          if ((base1 = _this.settings).blogs_sites_helper == null) {
+            base1.blogs_sites_helper = false;
+          }
+          if ((base1 = _this.settings).services_sites_helper == null) {
+            base1.services_sites_helper = false;
+          }
+          if ((base1 = _this.settings).guides_sites_helper == null) {
+            base1.guides_sites_helper = false;
+          }
+          if ((base1 = _this.settings).news_sites_helper == null) {
+            base1.news_sites_helper = false;
+          }
+          if ((base1 = _this.settings).video_images_sites_helper == null) {
+            base1.video_images_sites_helper = false;
+          }
+          if ((base1 = _this.settings).porn_sites_helper == null) {
+            base1.porn_sites_helper = false;
+          }
+          if ((base1 = _this.settings).chat_sites_helper == null) {
+            base1.chat_sites_helper = false;
+          }
+          if ((base1 = _this.settings).forums_boards_sites_helper == null) {
+            base1.forums_boards_sites_helper = false;
+          }
+          if ((base1 = _this.settings).other_sites_helper == null) {
+            base1.other_sites_helper = false;
+          }
+          if ((base1 = _this.settings).owned_sites_helper == null) {
+            base1.owned_sites_helper = false;
+          }
+          if ((base1 = _this.settings).connected_sites_helper == null) {
+            base1.connected_sites_helper = false;
+          }
+          if ((base1 = _this.settings).merged_sites_helper == null) {
+            base1.merged_sites_helper = false;
           }
           return _this.on_settings.resolve(_this.settings);
         };
